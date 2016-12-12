@@ -1,3 +1,4 @@
+import com.google.common.base.Predicate;
 import org.openqa.selenium.*;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.support.events.EventFiringWebDriver;
@@ -10,7 +11,7 @@ public class BingTest {
 
     public static void main(String[] args) {
         //create the new google driver (EventFiringWebDriver)
-        EventFiringWebDriver driver = new EventFiringWebDriver(new BingTest().getDriver());
+        final EventFiringWebDriver driver = new EventFiringWebDriver(new BingTest().getDriver());
         //register the WebDriverEventListener
         driver.register(new EventHandler());
         //create the JavascriptExecutor object
@@ -19,11 +20,12 @@ public class BingTest {
         WebDriverWait wait = new WebDriverWait(driver, 10);
         //open the bing search page
         driver.get("https://www.bing.com/");
-        //wait the next navigation element by class name
-        wait.until(ExpectedConditions.presenceOfElementLocated(By.xpath("//a[@id='scpl1']")));
 
-        //find the "Pictures" text link by xpath
-        WebElement pictureTextLink = driver.findElement(By.xpath("//a[@id='scpl1']"));
+        //wait the next navigation element by id
+        By images = By.id("scpl1");
+        wait.until(ExpectedConditions.presenceOfElementLocated(images));
+        //find the "Pictures" text link
+        WebElement pictureTextLink = driver.findElement(images);
         //click the text link
         pictureTextLink.click();
 
@@ -32,18 +34,21 @@ public class BingTest {
 
         //scroll
         for (int i = 0; i < 3; i++) {
-            //create the first list of the search results by xpath
-            List<WebElement> first = driver.findElements(By.xpath("//div[@class='img_cont hoff']/img"));
+            final By imagesList = By.xpath("//div[@class='img_cont hoff']/img");
+            //create the first list of the search results
+            final List<WebElement> first = driver.findElements(imagesList);
             //scroll to the bottom of the page
             jse.executeScript("window.scrollTo(0, document.body.scrollHeight)");
-            //wait for loading new content (while uploading the "expandButton active" class is becoming as "expandButton loading")
-            wait.until(ExpectedConditions.presenceOfElementLocated(By.xpath("//div[@class='expandButton active']")));
-            //create the second list of the search results by xpath
-            List<WebElement> second = driver.findElements(By.xpath("//div[@class='img_cont hoff']/img"));
-            //check that the pictures were uploaded
-            if (first.size() < second.size()) {
-                System.out.println(String.format("The pictures are uploaded! The size before uploading is %d, the size after uploading is %d", first.size(), second.size()));
-            } else System.err.println("The pictures are not uploaded");
+            //wait for loading new content
+            wait.until(new Predicate<WebDriver>() {
+                public boolean apply(WebDriver webDriver) {
+                    return first.size() < driver.findElements(imagesList).size();
+                }
+            });
+            //create the second list of the search results
+            List<WebElement> second = driver.findElements(imagesList);
+            //print the result with quantity of previous and last results
+            System.out.println(String.format("The pictures are uploaded! The size before uploading is %d, the size after uploading is %d", first.size(), second.size()));
         }
         //scroll to the top of the page
         jse.executeScript("window.scrollTo(0, 0)");
@@ -52,65 +57,73 @@ public class BingTest {
         WebElement input = driver.findElement(By.className("b_searchbox"));
         //fill the input field
         input.sendKeys("automatio");
-        //wait for the "automation" text
-        wait.until(ExpectedConditions.presenceOfElementLocated(By.xpath("//strong[text()='n']")));
 
+        //wait for the "automation" text
+        By nText = By.xpath("//strong[text()='n']");
+        wait.until(ExpectedConditions.presenceOfElementLocated(nText));
         //find the "automation" text link by xpath
-        WebElement automation = driver.findElement(By.xpath("//strong[text()='n']"));
+        WebElement automation = driver.findElement(nText);
         //click the text link
         automation.click();
 
-        //wait for uploading pictures
-        wait.until(ExpectedConditions.presenceOfAllElementsLocatedBy(By.xpath("//div[@class='dg_u']/div/a/img")));
-
         //wait the "Дата" text link by cssSelector
-        wait.until(ExpectedConditions.presenceOfElementLocated(By.cssSelector("#ftrB>ul>li:nth-child(6)>span>span")));
-        //find the "Дата" dropdown menu by cssSelector
-        WebElement dateElement = driver.findElement(By.cssSelector("#ftrB>ul>li:nth-child(6)>span>span"));
-        //click the "Дата" dropdown menu
-        dateElement.click();
+        final By dateSelector = By.cssSelector("#ftrB>ul>li:nth-child(6)>span>span");
+        final By dateDropDownMenu = By.xpath("//div[@class='ftrDC ']");
+        wait.until(ExpectedConditions.presenceOfElementLocated(dateSelector));
+        //check that the "Дата" dropdown menu is shown
+        wait.until(new Predicate<WebDriver>() {
+            public boolean apply(WebDriver webDriver) {
+                //find the "Дата" dropdown menu by cssSelector
+                WebElement dateElement = driver.findElement(dateSelector);
+                //click the "Дата" dropdown menu
+                dateElement.click();
+                //If the "Дата" dropdown menu is not shown< repeat
+                return driver.findElement(dateDropDownMenu).isDisplayed();
+            }
+        });
 
-        wait.until(ExpectedConditions.presenceOfElementLocated(By.xpath("//div[@class='ftrDC ']")));
         //find the "В прошлом месяце" text link by cssSelector
         WebElement lastMonthElement = driver.findElement(By.cssSelector("#ftrB>ul>li:nth-child(6)>div>div>a:nth-child(4)>span"));
         //click the "В прошлом месяце" text link
         lastMonthElement.click();
 
         //wait for upload pictures
-        wait.until(ExpectedConditions.presenceOfElementLocated(By.xpath("//div[@id='dg_c']")));
+        wait.until(ExpectedConditions.presenceOfElementLocated(By.id("dg_c")));
 
-        //create the list of the pictures by xpath
-        List<WebElement> element = driver.findElements(By.xpath("//div[@id='dg_c']/div/div/div/div/a/img"));
+        //Find the pictures by xpath
+        WebElement element = driver.findElement(By.xpath("//div[@id='dg_c']/div/div/div/div/a/img"));
         //click the first image
-        element.get(0).click();
+        element.click();
 
         //wait for the image frame
-        wait.until(ExpectedConditions.presenceOfElementLocated(By.xpath("//iframe[@id='OverlayIFrame']")));
+        By frame = By.id("OverlayIFrame");
+        wait.until(ExpectedConditions.presenceOfElementLocated(frame));
         //switch to the frame
-        driver.switchTo().frame(driver.findElement(By.xpath("//iframe[@id='OverlayIFrame']")));
+        driver.switchTo().frame(driver.findElement(frame));
 
         //wait for the main image
-        wait.until(ExpectedConditions.presenceOfElementLocated(By.xpath("//img[@class='mainImage accessible nofocus']")));
+        By mainImage = By.xpath("//img[@class='mainImage accessible nofocus']");
+        wait.until(ExpectedConditions.presenceOfElementLocated(mainImage));
         //find the next button
         WebElement nextImage = driver.findElement(By.xpath("//*[@filter='url(#ds_right)']/.."));
         //click the next button
         nextImage.click();
         //wait for the main image
-        wait.until(ExpectedConditions.presenceOfElementLocated(By.xpath("//img[@class='mainImage accessible nofocus']")));
+        wait.until(ExpectedConditions.presenceOfElementLocated(mainImage));
         //find the previous button
         WebElement previousImage = driver.findElement(By.xpath("//*[@filter='url(#ds_left)']/.."));
         //click the previous button
         previousImage.click();
         //wait for the main image
-        wait.until(ExpectedConditions.presenceOfElementLocated(By.xpath("//img[@class='mainImage accessible nofocus']")));
+        wait.until(ExpectedConditions.presenceOfElementLocated(mainImage));
 
         //find the main image
-        WebElement mainImage = driver.findElement(By.xpath("//img[@class='mainImage accessible nofocus']"));
+        WebElement mainImageEl = driver.findElement(mainImage);
         //click the main image
-        mainImage.click();
+        mainImageEl.click();
 
         //find the url image
-        String urlImage = mainImage.getAttribute("src");
+        String urlImage = mainImageEl.getAttribute("src");
         //for checking the new tab
         boolean isPresented = false;
 
